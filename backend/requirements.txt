@@ -1,0 +1,29 @@
+# Core FastAPI
+fastapi==0.165.0
+uvicorn==0.54.0
+pydantic==2.14.4
+pydantic_core==2.50.5
+python-dotenv==1.1.0
+
+# WebRTC / Camera streaming
+aiortc==1.16.0
+aioice==0.13.0
+av==18.1.0
+cryptography==50.0.2
+
+# AI / YOLO (CPU-only torch for Render free tier)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+torchvision==0.29.2+cpu
+ultralytics==8.4.216
+
+# Image processing
+opencv-python-headless==4.10.0.84
+numpy==2.1.1
+Pillow==11.2.1
+
+# Utilities
+anyio==4.16.0
+httpx==0.28.1
+requests==2.32.3
+python-multipart==0.0.20
