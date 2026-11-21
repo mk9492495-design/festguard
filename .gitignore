@@ -1,0 +1,27 @@
+# Python virtual environment
+venv/
+env/
+.env
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+
+# YOLO / ML model runs
+runs/
+
+# Large model files (optional - remove if you want to keep them)
+# *.pt
+# *.weights
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

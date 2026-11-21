@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrowdGuard Phone Camera</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #101827;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        video {
+            width: 100%;
+            max-width: 500px;
+            background: black;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        input, button {
+            padding: 12px;
+            margin: 7px;
+            border-radius: 7px;
+            border: none;
+            font-size: 16px;
+        }
+
+        button {
+            background: #16a34a;
+            color: white;
+            cursor: pointer;
+        }
+
+        #stop {
+            background: #dc2626;
+        }
+
+        #status {
+            margin: 15px;
+            color: #facc15;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📷 CrowdGuard</h1>
+    <h3>Live Campus Camera</h3>
+
+    <input id="cameraId" value="phone_camera_1"
+           placeholder="Camera ID">
+
+    <br>
+
+    <input id="location" value="Main Gate"
+           placeholder="Camera Location">
+
+    <br>
+
+    <video id="preview" autoplay playsinline muted></video>
+
+    <br>
+
+    <button onclick="startCamera()">Start Live Camera</button>
+    <button id="stop" onclick="stopCamera()">Stop Camera</button>
+
+    <p id="status">Waiting to connect...</p>
+
+<script>
+    let localStream = null;
+    let peerConnection = null;
+    let currentCameraId = null;
+
+    const statusText = document.getElementById("status");
+    const preview = document.getElementById("preview");
+
+    async function startCamera() {
+        try {
+            currentCameraId =
+                document.getElementById("cameraId").value.trim();
+
+            const location =
+                document.getElementById("location").value.trim();
+
+            if (!currentCameraId || !location) {
+                alert("Enter Camera ID and Location");
+                return;
+            }
+
+            statusText.textContent = "Requesting camera permission...";
+
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: false
+            });
+
+            preview.srcObject = localStream;
+
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    {
+                        urls: "stun:stun.l.google.com:19302"
+                    }
+                ]
+            });
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            peerConnection.onconnectionstatechange = () => {
+                statusText.textContent =
+                    "Connection: " + peerConnection.connectionState;
+            };
+
+            statusText.textContent = "Creating WebRTC connection...";
+
+            const offer = await peerConnection.createOffer();
+
+            await peerConnection.setLocalDescription(offer);
+
+            // Wait until ICE candidates are gathered
+            await new Promise(resolve => {
+                if (peerConnection.iceGatheringState === "complete") {
+                    resolve();
+                } else {
+                    peerConnection.addEventListener(
+                        "icegatheringstatechange",
+                        () => {
+                            if (peerConnection.iceGatheringState === "complete") {
+                                resolve();
+                            }
+                        }
+                    );
+                }
+            });
+
+            statusText.textContent = "Connecting to CrowdGuard backend...";
+
+            const response = await fetch("/cameras/offer", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    camera_id: currentCameraId,
+                    sdp: peerConnection.localDescription.sdp,
+                    type: peerConnection.localDescription.type
+                })
+            });
+
+            const answer = await response.json();
+
+            if (!response.ok) {
+                throw new Error(answer.detail || "Backend connection failed");
+            }
+
+            await peerConnection.setRemoteDescription({
+                type: answer.type,
+                sdp: answer.sdp
+            });
+
+            statusText.textContent = "Connected! Sending live video.";
+
+        } catch (error) {
+            console.error(error);
+            statusText.textContent = "Error: " + error.message;
+
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+        }
+    }
+
+    async function stopCamera() {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        if (currentCameraId) {
+            try {
+                await fetch(
+                    "/cameras/" + encodeURIComponent(currentCameraId),
+                    { method: "DELETE" }
+                );
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+
+        preview.srcObject = null;
+        statusText.textContent = "Camera stopped.";
+    }
+</script>
+
+</body>
+</html>

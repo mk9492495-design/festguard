@@ -1,0 +1,301 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>CrowdGuard - Campus Crowd Density Alert</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<style>
+/* Live camera inside campus map */
+.map-camera {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--card, #151b25);
+  border: 1px solid var(--line, #303b4c);
+}
+
+.map-camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.map-camera-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.map-camera video,
+.map-camera img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #080b10;
+  border-radius: 10px;
+}
+
+.camera-status {
+  font-size: 12px;
+  color: var(--safe, #43d69a);
+}
+
+.map-camera .hint {
+  margin-bottom: 0;
+}
+
+@media(max-width:700px) {
+  .map-camera {
+    padding: 10px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="wrap">
+
+    <div class="top">
+      <span class="live">
+        <i></i>LIVE · <span id="clock" class="mono"></span>
+      </span>
+      <span>Campus Fest Control Room</span>
+    </div>
+
+    <h1 style="margin-top:18px">
+      Campus Crowd<br>
+      <span style="color:var(--acc)">Density Alert</span>
+    </h1>
+
+    <p class="lede">
+      Real-time crowd monitoring for gates, food courts and event areas,
+      with warnings before density becomes unsafe.
+    </p>
+
+    <div class="stats">
+      <div>
+        <b id="tot">–</b>
+        <span>people on campus</span>
+      </div>
+
+      <div>
+        <b id="ncrit">–</b>
+        <span>critical zones</span>
+      </div>
+
+      <div>
+        <b id="nal">–</b>
+        <span>open alerts</span>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- LIVE CAMPUS MAP -->
+  <section class="s1">
+
+    <div>
+
+      <div class="head">
+        <h2>Live campus map</h2>
+
+        <div class="legend">
+          <span><i style="background:var(--safe)"></i>Safe</span>
+          <span><i style="background:var(--mod)"></i>Moderate</span>
+          <span><i style="background:var(--high)"></i>High density</span>
+          <span><i style="background:var(--crit)"></i>Critical</span>
+        </div>
+      </div>
+
+      <!-- Existing SVG campus map preserved -->
+      <div class="card" style="padding:8px">
+        <svg
+          id="map"
+          viewBox="0 0 640 390"
+          width="100%"
+          role="img"
+          aria-label="Campus zone density map">
+        </svg>
+      </div>
+
+      <p class="hint">
+        Select a zone to see its forecast and trend.
+      </p>
+
+      <!-- IPHONE CAMERA INSIDE MAP SECTION -->
+      <div class="map-camera">
+
+        <div class="map-camera-header">
+          <h3>Live Camera — Main Gate</h3>
+
+          <span class="live">
+            <i></i>LIVE
+          </span>
+        </div>
+
+        <img
+          id="mapLiveCamera"
+          src="/api/video/phone_camera_1"
+          alt="Live iPhone camera with YOLO detection boxes"
+        >
+
+        <p class="hint">
+          iPhone camera · Real-time YOLO person detection
+        </p>
+
+      </div>
+
+    </div>
+
+    <!-- ALERTS AND PREDICTIONS -->
+    <div>
+
+      <h2 style="margin-bottom:12px">
+        Alerts requiring action
+      </h2>
+
+      <div id="alerts"></div>
+
+      <div class="card" id="pred" style="margin-top:20px"></div>
+
+    </div>
+
+  </section>
+
+  <!-- CAMERA FEEDS -->
+  <section class="s2">
+
+    <div class="head">
+      <h2>Camera feeds (3)</h2>
+
+      <span class="hint" style="margin:0">
+        Anonymous density view only. No faces, no identities.
+      </span>
+    </div>
+
+    <div class="cams" id="cams"></div>
+
+  </section>
+
+  <!-- QUEUES AND CROWD FLOW -->
+  <section class="s3">
+
+    <div>
+
+      <h2 style="margin-bottom:12px">
+        Queue wait times
+      </h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Counter</th>
+            <th>People</th>
+            <th>Wait</th>
+          </tr>
+        </thead>
+
+        <tbody id="q"></tbody>
+      </table>
+
+      <p id="qs" class="hint" style="color:var(--fg)"></p>
+
+    </div>
+
+    <div>
+
+      <h2 style="margin-bottom:12px">
+        Crowd flow by zone
+      </h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>In/min</th>
+            <th>Out/min</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody id="flow"></tbody>
+      </table>
+
+    </div>
+
+  </section>
+
+  <!-- INCIDENT LOG -->
+  <section class="s4">
+
+    <h2>Incident log</h2>
+
+    <ul class="log" id="inc"></ul>
+
+  </section>
+
+  <!-- PRIVACY -->
+  <section class="s5">
+
+    <div class="priv">
+
+      <h2 style="font-size:18px">
+        Privacy by design
+      </h2>
+
+      <ul>
+        <li>No face recognition.</li>
+        <li>No individual is tracked.</li>
+        <li>Video is processed locally on this machine.</li>
+        <li>The dashboard shows anonymous counts and movement.</li>
+      </ul>
+
+    </div>
+
+    <details>
+
+      <summary>Backend integration map</summary>
+
+      <code>
+        Live map → heatmap.py<br>
+        Forecast → prediction.py<br>
+        Flow table → crowd_flow.py<br>
+        Alerts → emergency_alerts.py<br>
+        Camera feeds → camera_stream.py, multi_camera.py<br>
+        Queue → queue_monitor.py<br>
+        Incident log → incident_detection.py<br>
+        Counts → detection.py + privacy.py
+      </code>
+
+      <p>
+        Dashboard API is served by the connected FastAPI backend.
+        Camera video uses the same-origin API endpoint.
+      </p>
+
+    </details>
+
+  </section>
+
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
