@@ -1,6 +1,7 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timezone
 
@@ -12,6 +13,17 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="AI Powered Campus Crowd Monitoring System"
+)
+
+# Allow the deployed Vercel frontend to access the Render backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://festguard.vercel.app",
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -39,7 +51,7 @@ def health_check():
     }
 
 
-# Get only active camera count
+# Get active camera count
 @app.get("/cameras")
 def get_cameras():
     cameras = camera_manager.get_camera_status()
@@ -59,7 +71,6 @@ def get_cameras():
 # Get individual camera analytics
 @app.get("/cameras/{camera_id}/analytics")
 def get_camera_analytics(camera_id: str):
-
     if camera_id not in camera_manager.connections:
         raise HTTPException(
             status_code=404,
@@ -97,7 +108,6 @@ def get_camera_analytics(camera_id: str):
 # Overall crowd analytics
 @app.get("/analytics/summary")
 def get_analytics_summary():
-
     cameras = camera_manager.get_camera_status()
 
     active_cameras = [
@@ -110,7 +120,6 @@ def get_analytics_summary():
     camera_results = []
 
     for camera in active_cameras:
-
         camera_id = camera["camera_id"]
 
         analytics = camera_manager.stream_receiver.get_analytics(
@@ -119,7 +128,6 @@ def get_analytics_summary():
 
         if analytics is not None:
             count = analytics["person_count"]
-
             total_people += count
             processed_cameras += 1
 
@@ -140,13 +148,11 @@ def get_analytics_summary():
 # Receive WebRTC camera connection
 @app.post("/cameras/offer")
 async def receive_camera_offer(data: CameraOffer):
-
     try:
         answer = await create_camera_offer(
             data.camera_id,
             data.sdp
         )
-
         return answer
 
     except ValueError as error:
@@ -162,10 +168,9 @@ async def receive_camera_offer(data: CameraOffer):
         )
 
 
-# Disconnect camera manually
+# Disconnect camera
 @app.delete("/cameras/{camera_id}")
 async def disconnect_camera(camera_id: str):
-
     removed = await camera_manager.remove_camera(camera_id)
 
     if not removed:
@@ -180,10 +185,9 @@ async def disconnect_camera(camera_id: str):
     }
 
 
-# List all CrowdGuard features
+# List CrowdGuard features
 @app.get("/features")
 def get_features():
-
     return {
         "features": [
             "Crowd Heatmap",
@@ -197,7 +201,17 @@ def get_features():
         ],
         "total_features": 8
     }
+
+
+# Serve phone camera page
 @app.get("/phone-camera")
 def phone_camera():
     file_path = Path(__file__).parent / "phone_camera.html"
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Phone camera page not found"
+        )
+
     return FileResponse(file_path)
